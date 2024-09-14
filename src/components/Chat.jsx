@@ -1,14 +1,25 @@
 import { useEffect, useState } from "react";
-
-const Chat = ({socket}) => {
+import {  useSearchParams } from "react-router-dom";
+import { io } from "socket.io-client";
+import useSocketHook from "../hooks/useSocketHook";
+import {v4 as uuid4 } from 'uuid'
+const Chat = () => {
   const [message, setMessage] = useState("");
   const [sender, setSender] = useState("");
   const [messages, setMessages] = useState([]);
+  const [searchParams,setSearchParams] = useSearchParams();
+
+  const chatId= searchParams.get('chatId');
+  console.log(chatId)
+  const socket = useSocketHook(chatId)
+
   const sendMessage = () => {
     const newMessage= {
       id: socket?.id,
       text: message,
       sender,
+      chatId,
+      senderId:socket?.id,
       timestamp: new Date().getTime(),
     }
     if (message !== "") {
@@ -20,19 +31,39 @@ const Chat = ({socket}) => {
       setMessage("");
     }
   };
-  useEffect(() => {
+ 
+  useEffect(()=>{
     setSender(localStorage.getItem("username"));
-  }, []);
+    if(socket !== null){
+      
+      socket?.on('message',(message)=>{
+        if(message?.senderId !== socket?.id){
+          setMessages(prev=> [...prev, message])
+        }
+      })
+    }
+    return () => {
+      socket?.disconnect();
+    };
+  },[socket]);
+   const handleClick = ()=>{
+    setSearchParams({
+      chatId:uuid4()
+    })
+   }
   return (
     <div className="p-4">
       <div className="grid grid-cols-1">
+        <div>
+          <button className="oultine-none border-none bg-purple-400 text-white py-2 px-2 rounded-lg max-w-28" onClick={handleClick}>new chat</button>
+        </div>
         <div className="mt-10 overflow-y-auto max-h-[70vh]">
           {messages?.length > 0 &&
-            messages?.map((item) => {
+            messages?.map((item,index) => {
               return (
                 <div
                   className="flex justify-start mb-4 items-center"
-                  key={item?.id}
+                  key={`${item?.id})${index}`}
                 >
                   {item?.sender}
                   <div className="ml-2 py-3 bg-gray-400 rounded-br-3xl rounded-tr-3xl px-3 text-white flex items-center gap-4">
